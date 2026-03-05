@@ -5,8 +5,8 @@ from pathlib import Path
 — le numéro de l'article,
 — le numéro du bulletin,
 — la date ---> ok,
-— la rubrique,
-— le titre de l'article,
+— la rubrique ---> ok,
+— le titre de l'article ---> ok,
 — l'auteur de l'article,
 — le texte de l'article,
 — la ou les images avec leur(s) URL(s) et leur(s) légende(s) respective(s),
@@ -23,16 +23,21 @@ def extractDate(text):
     
 
 def extractRubrique(text):
-    match = re.search(r"<p class=.style96.><span class=.style42.>(.)<br></span>", text)
+    match = re.search(r"<p class=.style96.><span class=.style42.>(.*?)<br></span>", text)
     if match:
-        return match.group(0)
+        return match.group(1)
+    
+def extractTitle(text):
+    match = re.search(r"<title>(.*?)&gt;(.*?)&gt; (.*?)</title>", text)
+    if match:
+        return match.group(3)
 
 def main():
     for file in DATA_PATH.glob("*.htm"):
         with open(file, "r", encoding="utf-8") as f:
             content = f.read()
-            rubrique = extractRubrique(content)
-            print(f"file: {file.name} --> {rubrique}")
+            titre = extractTitle(content)
+            print(f"file: {file.name} --> {titre}")
     
 
 if __name__ == "__main__":
