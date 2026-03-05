@@ -20,13 +20,19 @@ def extractDate(text):
     match = re.search(r"\d{4}/\d{2}/\d{2}",text)
     if match:
         return match.group()
+    
+
+def extractRubrique(text):
+    match = re.search(r"<p class=.style96.><span class=.style42.>(.)<br></span>", text)
+    if match:
+        return match.group(0)
 
 def main():
     for file in DATA_PATH.glob("*.htm"):
         with open(file, "r", encoding="utf-8") as f:
             content = f.read()
-            date = extractDate(content)
-            print(f"file: {file.name} --> {date}")
+            rubrique = extractRubrique(content)
+            print(f"file: {file.name} --> {rubrique}")
     
 
 if __name__ == "__main__":
