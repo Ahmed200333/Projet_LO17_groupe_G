@@ -1,5 +1,7 @@
 import re
 import math
+import seaborn as sns #type:ignore
+import matplotlib.pyplot as plt
 
 def segmente(xmlfile, outputfile="tokens.txt"):
     with open(xmlfile, 'r', encoding='utf-8') as file:
@@ -95,7 +97,7 @@ def calculer_tf_idf(tokenstf_file = "tokentf.txt", tokensidf_file = "tokenidf.tx
                 tf_idf = float(tf) * idf_values.get(token, 0)
                 out.write(f"{article}\t{token}\t{tf_idf}\n")
 
-def construire_anti_dictionnaire(tokentfidf_file = "tokentfidf.txt", seuil=0.008):
+def construire_anti_dictionnaire(tokentfidf_file = "tokentfidf.txt", seuil=0.1):
     anti_dictionnaire = []
     with open(tokentfidf_file, 'r', encoding='utf-8') as file:
         next(file)
@@ -106,12 +108,77 @@ def construire_anti_dictionnaire(tokentfidf_file = "tokentfidf.txt", seuil=0.008
                     anti_dictionnaire.append(token)
     return anti_dictionnaire
 
-# segmente("../../TD01/src/output.xml")
 
-# calculer_frequences("tokens.txt")
+def findSeuil(tokentfidf_file = "tokentfidf.txt"):
+    idf_values = []
+    with open(tokentfidf_file, 'r', encoding='utf-8') as file:
+        next(file)
+        for line in file:
+            _, _, idf = line.strip().split('\t')
+            idf_values.append(float(idf))
+    idf_values.sort()
+    filtered = [x for x in idf_values if x > 0.006]
+    sns.histplot(filtered, bins=50, kde=True)
+    plt.show()
 
-# calculer_idf()
 
-# calculer_tf_idf()
+def buildSubstitution(tokentfidf_file = "tokentfidf.txt", seuil=0.09):
+    anti_dictionnaire = construire_anti_dictionnaire(tokentfidf_file, seuil)
+    substitution = {}
+    alltokens = []
+    with open(tokentfidf_file, 'r', encoding='utf-8') as file:
+        next(file)
+        for line in file:
+            _, token, _ = line.strip().split('\t')
+            alltokens.append(token)
+    for token in alltokens:
+        if token in anti_dictionnaire:
+            substitution[token] = ""
+        else:
+            substitution[token] = token
+    with open("substitution.txt", 'w', encoding='utf-8') as out:
+        out.write("token\tsubstitution\n")
+        for token in substitution:
+             out.write(f"{token}\t{substitution[token]}\n")
 
-print(construire_anti_dictionnaire())
+
+def substitue(text, dictionnaire="substitution.txt"):
+    substitution = {}
+    with open(dictionnaire, 'r', encoding='utf-8') as file:
+        next(file)
+        for line in file:
+            if len(line.strip().split('\t')) == 2:
+                token, sub = line.strip().split('\t')
+            else: 
+                token = line.strip()
+                sub = ""
+            substitution[token] = sub
+    tokens = re.findall(r'\b[\w\']+\b', text, re.UNICODE)
+    result = []
+    for token in tokens:
+        mapped = substitution.get(token, token)
+        if mapped:
+            result.append(mapped)
+    return ' '.join(result)
+
+def buildFilteredXML(input_xml="../../data/corpus.xml", output_xml="../../data/corpus_filtered.xml", substitution_file="../../data/substitution.txt"):
+    with open(input_xml, 'r', encoding='utf-8') as file:
+        content = file.read()
+    
+        with open(output_xml, 'w', encoding='utf-8') as out:
+            for ligne in content.splitlines():
+                if ligne.strip().startswith("<titre>") or ligne.strip().startswith("<texte>"):
+                    cleared_ligne = re.sub(r'<[^>]+>', '', ligne)
+                    subsitue_ligne = substitue(cleared_ligne, substitution_file)
+                    if ligne.strip().startswith("<titre>"):
+                        out.write(f"\t\t<titre>{subsitue_ligne}</titre>\n")
+                    else:
+                     out.write(f"\t\t<texte>{subsitue_ligne}</texte>\n")
+                else:
+                    out.write(f"{ligne}\n")
+
+
+if __name__ == "__main__":
+    buildFilteredXML()
+
+

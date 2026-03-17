@@ -74,7 +74,7 @@ def extractContact(text):
         return html.unescape(text)
 
 def main():
-    with open("output.xml", "w", encoding="utf-8") as xml:
+    with open("corpus.xml", "w", encoding="utf-8") as xml:
         xml.write("<corpus>\n")
         for file in DATA_PATH.glob("*.htm"):
             with open(file, "r", encoding="utf-8") as f:
