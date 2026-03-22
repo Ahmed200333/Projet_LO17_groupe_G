@@ -2,39 +2,37 @@ import re
 import math
 import seaborn as sns #type:ignore
 import matplotlib.pyplot as plt
+from collections import defaultdict
 
-def segmente(xmlfile, outputfile="tokens.txt"):
+def segmente(xmlfile, outputfile="../../data/tokens.txt"):
     with open(xmlfile, 'r', encoding='utf-8') as file:
         content = file.read()
     
-    articles_content = re.findall(r'<article>(.*?)</images>', content, re.DOTALL)
-    
+    documents = re.findall(r'<document>(.*?)</document>', content, re.DOTALL)
+
     with open(outputfile, 'w', encoding='utf-8') as out:
         out.write("article\ttoken\n")
         
-        for c in articles_content:
-            titre_match = re.search(r'<titre>(.*?)</titre>', c)
-            texte_match = re.search(r'<texte>(.*?)</texte>', c)
-            num_article = c[:5]
+        for doc in documents:
+            article_match = re.search(r'<article>(.*?)</article>', doc)
+            num_article = article_match.group(1).strip() if article_match else "unknown"
+            
+            titre_match = re.search(r'<titre>(.*?)</titre>', doc, re.DOTALL)
+            texte_match = re.search(r'<texte>(.*?)</texte>', doc, re.DOTALL)
             
             titre = titre_match.group(1) if titre_match else ""
             texte = texte_match.group(1) if texte_match else ""
-            
+
             contenu_complet = titre + ' ' + texte
             
-            tokens = re.findall(r'\b[\w\']+\b', contenu_complet, re.UNICODE)
+            tokens = re.findall(r"[\w']+", contenu_complet, re.UNICODE)
             
             for token in tokens:
-                if token.strip():
-                    if "\'" in token:
-                        tokens = token.split("\'")
-                        out.write(f"{num_article}\t{tokens[0]+'\''}\n")
-                        out.write(f"{num_article}\t{tokens[1]}\n")
-                    else:
-                        out.write(f"{num_article}\t{token}\n")
+                token = token.strip().lower()
+                if token:
+                    out.write(f"{num_article}\t{token}\n")
 
-
-def calculer_frequences(tokens_file = "tokens.txt"):
+def calculer_frequences(tokens_file = "../../data/tokens.txt"):
     frequences = {}
     
     with open(tokens_file, 'r', encoding='utf-8') as file:
@@ -51,7 +49,7 @@ def calculer_frequences(tokens_file = "tokens.txt"):
             else:
                 frequences[article][token] = 1
 
-    with open("tokentf.txt", 'w', encoding='utf-8') as out:
+    with open("../../data/tokentf.txt", 'w', encoding='utf-8') as out:
         out.write("article\ttoken\tcoef.\n")
         for article in frequences:
             total_tokens = sum(frequences[article].values())
@@ -60,44 +58,71 @@ def calculer_frequences(tokens_file = "tokens.txt"):
                 frequence = count / total_tokens
                 out.write(f"{article}\t{token}\t{frequence}\n")
 
-def calculer_idf(tokenstf_file = "tokentf.txt"):
-    d = {}
-    articles = []
-    with open(tokenstf_file, 'r', encoding='utf-8') as file:
+def calculer_idf(tokens_file="../../data/tokens.txt"):
+    articles = defaultdict(set)
+    with open(tokens_file, 'r', encoding='utf-8') as file:
         next(file)
         for line in file:
-            article, token, _ = line.strip().split('\t')
-            if token not in d:
-                d[token] = 1
-            else:
-                d[token] += 1
-            if article not in articles:
-                articles.append(article)
+            article, token = line.strip().split('\t')
+            articles[article].add(token)  # add() ignore les doublons automatiquement
+    
     N = len(articles)
-    with open("tokenidf.txt", 'w', encoding='utf-8') as out:
+    
+    d = defaultdict(int)
+    for tokens_set in articles.values():
+        for token in tokens_set:
+            d[token] += 1
+    
+    with open("../../data/tokenidf.txt", 'w', encoding='utf-8') as out:
         out.write("token\tidf\n")
-        for token in d:
-            idf = math.log10(N / d[token])
-            out.write(f"{token}\t{idf}\n")
+        for token, df in d.items():
+            idf = math.log10(N / df)
+            out.write(f"{token}\t{idf:.8f}\n")
         
-def calculer_tf_idf(tokenstf_file = "tokentf.txt", tokensidf_file = "tokenidf.txt"):
+def calculer_tf_idf(tokenstf_file="../../data/tokentf.txt", tokensidf_file="../../data/tokenidf.txt"):
+    from collections import defaultdict
+    
     idf_values = {}
     with open(tokensidf_file, 'r', encoding='utf-8') as file:
         next(file)
         for line in file:
             token, idf = line.strip().split('\t')
             idf_values[token] = float(idf)
-
+    
+    token_tfidf_sums = defaultdict(lambda: {'sum': 0, 'count': 0})
+    
     with open(tokenstf_file, 'r', encoding='utf-8') as file:
         next(file)
-        with open("tokentfidf.txt", 'w', encoding='utf-8') as out:
-            out.write("article\ttoken\ttf*idf\n")
-            for line in file:
-                article, token, tf = line.strip().split('\t')
-                tf_idf = float(tf) * idf_values.get(token, 0)
-                out.write(f"{article}\t{token}\t{tf_idf}\n")
+        for line in file:
+            article, token, tf = line.strip().split('\t')
+            tf_idf = float(tf) * idf_values.get(token, 0)
+            
+            token_tfidf_sums[token]['sum'] += tf_idf
+            token_tfidf_sums[token]['count'] += 1
+    
+    token_avg_tfidf = {}
+    for token, stats in token_tfidf_sums.items():
+        token_avg_tfidf[token] = stats['sum'] / stats['count']
+    
+    tfidf_data = []
+    temp = []
+    with open(tokenstf_file, 'r', encoding='utf-8') as file:
+        next(file)
+        for line in file:
+            article, token, tf = line.strip().split('\t')
+            if token not in temp:
+                avg_tfidf = token_avg_tfidf[token]
+                temp.append(token)
+                tfidf_data.append((article, token, avg_tfidf))
+    
+    tfidf_data.sort(key=lambda x: x[2])
+    
+    with open("../../data/tokentfidf.txt", 'w', encoding='utf-8') as out:
+        out.write("article\ttoken\ttfidf\n")
+        for article, token, tf_idf in tfidf_data:
+            out.write(f"{article}\t{token}\t{tf_idf:.8f}\n")
 
-def construire_anti_dictionnaire(tokentfidf_file = "tokentfidf.txt", seuil=0.1):
+def construire_anti_dictionnaire(tokentfidf_file = "../../data/tokentfidf.txt", seuil=0.0015):
     anti_dictionnaire = []
     with open(tokentfidf_file, 'r', encoding='utf-8') as file:
         next(file)
@@ -108,8 +133,7 @@ def construire_anti_dictionnaire(tokentfidf_file = "tokentfidf.txt", seuil=0.1):
                     anti_dictionnaire.append(token)
     return anti_dictionnaire
 
-
-def findSeuil(tokentfidf_file = "tokentfidf.txt"):
+def findSeuil(tokentfidf_file = "../../data/tokentfidf.txt"):
     idf_values = []
     with open(tokentfidf_file, 'r', encoding='utf-8') as file:
         next(file)
@@ -121,8 +145,7 @@ def findSeuil(tokentfidf_file = "tokentfidf.txt"):
     sns.histplot(filtered, bins=50, kde=True)
     plt.show()
 
-
-def buildSubstitution(tokentfidf_file = "tokentfidf.txt", seuil=0.09):
+def buildSubstitution(tokentfidf_file = "../../data/tokentfidf.txt", seuil=0.0015):
     anti_dictionnaire = construire_anti_dictionnaire(tokentfidf_file, seuil)
     substitution = {}
     alltokens = []
@@ -141,8 +164,7 @@ def buildSubstitution(tokentfidf_file = "tokentfidf.txt", seuil=0.09):
         for token in substitution:
              out.write(f"{token}\t{substitution[token]}\n")
 
-
-def substitue(text, dictionnaire="substitution.txt"):
+def substitue(text, dictionnaire="../../data/substitution.txt"):
     substitution = {}
     with open(dictionnaire, 'r', encoding='utf-8') as file:
         next(file)
@@ -168,7 +190,7 @@ def buildFilteredXML(input_xml="../../data/corpus.xml", output_xml="../../data/c
         with open(output_xml, 'w', encoding='utf-8') as out:
             for ligne in content.splitlines():
                 if ligne.strip().startswith("<titre>") or ligne.strip().startswith("<texte>"):
-                    cleared_ligne = re.sub(r'<[^>]+>', '', ligne)
+                    cleared_ligne = re.sub(r'<[^>]+>', '', ligne).lower()
                     subsitue_ligne = substitue(cleared_ligne, substitution_file)
                     if ligne.strip().startswith("<titre>"):
                         out.write(f"\t\t<titre>{subsitue_ligne}</titre>\n")
@@ -177,8 +199,22 @@ def buildFilteredXML(input_xml="../../data/corpus.xml", output_xml="../../data/c
                 else:
                     out.write(f"{ligne}\n")
 
+def buildAntidictionnaire(tokentfidf_file = "../../data/tokentfidf.txt", seuil=0.0015):
+    anti_dictionnaire = construire_anti_dictionnaire(tokentfidf_file, seuil)
+    removed_token = []
+    with open(tokentfidf_file, 'r', encoding='utf-8') as file:
+        next(file)
+        for line in file:
+            _, token, _ = line.strip().split('\t')
+            if token in anti_dictionnaire and token not in  removed_token:
+                removed_token.append(token)
+    with open("../../data/antidictionnaire.txt", 'w', encoding='utf-8') as out:
+        out.write("token\n")
+        for token in removed_token:
+             out.write(f"{token}\n")
 
 if __name__ == "__main__":
-    buildFilteredXML()
-
-
+    # calculer_tf_idf()
+    buildAntidictionnaire()
+    # buildFilteredXML()
+    # buildSubstitution()
