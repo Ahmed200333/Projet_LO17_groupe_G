@@ -2,6 +2,7 @@ import spacy #type: ignore
 import re
 from nltk.stem import SnowballStemmer #type: ignore
 from collections import defaultdict
+import math
 
 def applySpacy(text, nlp):
     doc = nlp(text)
@@ -21,7 +22,6 @@ def buildLemmasFromSpacy():
                 if mot not in mot_lemme:
                     lemme = nlp(mot)[0].lemma_
                     mot_lemme[mot] = lemme
-
 
     with open("../../data/lemmas.txt", 'w', encoding='utf-8') as out:
         for mot, lemme in sorted(mot_lemme.items()):
@@ -74,14 +74,41 @@ def buildLemmatizedXML():
                         lemme = nlp(mot)[0].lemma_
                         lemmas.append(lemme)
                     if ligne.strip().startswith("<titre>"):
-                        out.write(f"\t\t<titre>{' '.join(lemmas)}</titre>")
+                        out.write(f"\t\t<titre>{' '.join(lemmas)}</titre>\n")
                     else:
-                        out.write(f"\t\t<texte>{' '.join(lemmas)}</texte>")
+                        out.write(f"\t\t<texte>{' '.join(lemmas)}</texte>\n")
                 else:
-                    out.write(ligne)
-                
+                    out.write(f"{ligne}\n")
 
-def calculer_frequences(tokens_file = "../../data/tokens.txt"):
+def segmente(xmlfile="../data/corpus_lematized.xml", outputfile="../data/tokens.txt"):
+    with open(xmlfile, 'r', encoding='utf-8') as file:
+        content = file.read()
+    
+    documents = re.findall(r'<document>(.*?)</document>', content, re.DOTALL)
+
+    with open(outputfile, 'w', encoding='utf-8') as out:
+        out.write("article\ttoken\n")
+        
+        for doc in documents:
+            article_match = re.search(r'<article>(.*?)</article>', doc)
+            num_article = article_match.group(1).strip() if article_match else "unknown"
+            
+            titre_match = re.search(r'<titre>(.*?)</titre>', doc, re.DOTALL)
+            texte_match = re.search(r'<texte>(.*?)</texte>', doc, re.DOTALL)
+            
+            titre = titre_match.group(1) if titre_match else ""
+            texte = texte_match.group(1) if texte_match else ""
+
+            contenu_complet = titre + ' ' + texte
+            
+            tokens = re.findall(r"\w+'|[\w]+", contenu_complet, re.UNICODE)
+            
+            for token in tokens:
+                token = token.strip().lower()
+                if token:
+                    out.write(f"{num_article}\t{token}\n")
+
+def calculer_frequences(tokens_file = "../data/tokens.txt"):
     frequences = {}
     
     with open(tokens_file, 'r', encoding='utf-8') as file:
@@ -98,7 +125,7 @@ def calculer_frequences(tokens_file = "../../data/tokens.txt"):
             else:
                 frequences[article][token] = 1
 
-    with open("../../data/tokentf.txt", 'w', encoding='utf-8') as out:
+    with open("../data/tokentf.txt", 'w', encoding='utf-8') as out:
         out.write("article\ttoken\tcoef.\n")
         for article in frequences:
             total_tokens = sum(frequences[article].values())
@@ -107,7 +134,7 @@ def calculer_frequences(tokens_file = "../../data/tokens.txt"):
                 frequence = count / total_tokens
                 out.write(f"{article}\t{token}\t{frequence}\n")
 
-def calculer_idf(tokens_file="../../data/tokens.txt"):
+def calculer_idf(tokens_file="../data/tokens.txt"):
     articles = defaultdict(set)
     with open(tokens_file, 'r', encoding='utf-8') as file:
         next(file)
@@ -122,13 +149,13 @@ def calculer_idf(tokens_file="../../data/tokens.txt"):
         for token in tokens_set:
             d[token] += 1
     
-    with open("../../data/tokenidf.txt", 'w', encoding='utf-8') as out:
+    with open("../data/tokenidf.txt", 'w', encoding='utf-8') as out:
         out.write("token\tidf\n")
         for token, df in d.items():
             idf = math.log10(N / df)
             out.write(f"{token}\t{idf:.8f}\n")
         
-def calculer_tf_idf(tokenstf_file="../../data/tokentf.txt", tokensidf_file="../../data/tokenidf.txt"):
+def calculer_tf_idf(tokenstf_file="../data/tokentf.txt", tokensidf_file="../data/tokenidf.txt"):
     from collections import defaultdict
     
     idf_values = {}
@@ -166,7 +193,7 @@ def calculer_tf_idf(tokenstf_file="../../data/tokentf.txt", tokensidf_file="../.
     
     tfidf_data.sort(key=lambda x: x[2])
     
-    with open("../../data/tokentfidf.txt", 'w', encoding='utf-8') as out:
+    with open("../data/tokentfidf.txt", 'w', encoding='utf-8') as out:
         out.write("article\ttoken\ttfidf\n")
         for article, token, tf_idf in tfidf_data:
             out.write(f"{article}\t{token}\t{tf_idf:.8f}\n")
@@ -176,4 +203,8 @@ if __name__ == "__main__":
     # buildLemmasFromSpacy()
     # buildRacineFromNLTK()
     # getUniqueLemmeAndRacine()
-    buildLemmatizedXML()
+    # buildLemmatizedXML()
+    # segmente()
+    # calculer_frequences()
+    # calculer_idf()
+    calculer_tf_idf()

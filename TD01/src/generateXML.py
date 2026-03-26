@@ -56,6 +56,7 @@ def extractTexte(text):
     if matches:
         text = ' '.join(matches).strip()
         text = re.sub(r'<[^>]+>', '', text)
+        text = ' '.join(text.split())
         return html.unescape(text)
     return None
 

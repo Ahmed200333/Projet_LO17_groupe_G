@@ -4,7 +4,7 @@ import seaborn as sns #type:ignore
 import matplotlib.pyplot as plt
 from collections import defaultdict
 
-def segmente(xmlfile, outputfile="../../data/tokens.txt"):
+def segmente(xmlfile="../../data/corpus.xml", outputfile="../../data/tokens.txt"):
     with open(xmlfile, 'r', encoding='utf-8') as file:
         content = file.read()
     
@@ -25,7 +25,7 @@ def segmente(xmlfile, outputfile="../../data/tokens.txt"):
 
             contenu_complet = titre + ' ' + texte
             
-            tokens = re.findall(r"[\w']+", contenu_complet, re.UNICODE)
+            tokens = re.findall(r"\w+'|[\w]+", contenu_complet, re.UNICODE)
             
             for token in tokens:
                 token = token.strip().lower()
@@ -122,7 +122,7 @@ def calculer_tf_idf(tokenstf_file="../../data/tokentf.txt", tokensidf_file="../.
         for article, token, tf_idf in tfidf_data:
             out.write(f"{article}\t{token}\t{tf_idf:.8f}\n")
 
-def buildAntidictionnaire(tokentfidf_file = "../../data/tokentfidf.txt", seuil=0.0015):
+def buildAntidictionnaire(tokentfidf_file = "../../data/tokentfidf.txt", seuil=0.0014):
     anti_dictionnaire = []
     with open(tokentfidf_file, 'r', encoding='utf-8') as file:
         next(file)
@@ -133,7 +133,7 @@ def buildAntidictionnaire(tokentfidf_file = "../../data/tokentfidf.txt", seuil=0
                     anti_dictionnaire.append(token)
     return anti_dictionnaire
 
-def buildAntidictionnaireFile(tokentfidf_file = "../../data/tokentfidf.txt", seuil=0.0015):
+def buildAntidictionnaireFile(tokentfidf_file = "../../data/tokentfidf.txt", seuil=0.0014):
     anti_dictionnaire = buildAntidictionnaire(tokentfidf_file, seuil)
     removed_token = []
     with open(tokentfidf_file, 'r', encoding='utf-8') as file:
@@ -159,7 +159,7 @@ def findSeuil(tokentfidf_file = "../../data/tokentfidf.txt"):
     sns.histplot(filtered, bins=50, kde=True)
     plt.show()
 
-def buildSubstitution(tokentfidf_file = "../../data/tokentfidf.txt", seuil=0.0015):
+def buildSubstitution(tokentfidf_file = "../../data/tokentfidf.txt", seuil=0.0014):
     anti_dictionnaire = buildAntidictionnaire(tokentfidf_file, seuil)
     substitution = {}
     alltokens = []
@@ -189,7 +189,7 @@ def substitue(text, dictionnaire="../../data/substitution.txt"):
                 token = line.strip()
                 sub = ""
             substitution[token] = sub
-    tokens = re.findall(r'\b[\w\']+\b', text, re.UNICODE)
+    tokens = re.findall(r"\w+'|[\w]+", text, re.UNICODE)
     result = []
     for token in tokens:
         mapped = substitution.get(token, token)
@@ -216,7 +216,10 @@ def buildFilteredXML(input_xml="../../data/corpus.xml", output_xml="../../data/c
 
 
 if __name__ == "__main__":
-    # calculer_tf_idf()
-    # buildAntidictionnaire()
-    # buildSubstitution()
-    buildFilteredXML()
+    #segmente()
+    calculer_frequences()
+    #calculer_idf()
+    #calculer_tf_idf()
+    #buildAntidictionnaireFile()
+    #buildSubstitution()
+    #buildFilteredXML()
