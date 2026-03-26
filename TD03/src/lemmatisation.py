@@ -1,6 +1,6 @@
 import spacy #type: ignore
 import re
-from nltk.stem import SnowballStemmer
+from nltk.stem import SnowballStemmer #type: ignore
 from collections import defaultdict
 
 def applySpacy(text, nlp):
@@ -60,6 +60,26 @@ def getUniqueLemmeAndRacine():
         if racine not in unique_racine:
             unique_racine.append(racine)
     print(len(unique_lemme),len(unique_racine))
+
+def buildLemmatizedXML():
+    nlp = spacy.load("fr_core_news_sm")
+    with open("../../data/corpus_filtered.xml", 'r', encoding='utf-8') as file:
+        content = file.read()
+        with open("../../data/corpus_lematized.xml", "w", encoding='UTF-8') as out:
+            for ligne in content.splitlines():
+                if ligne.strip().startswith("<titre>") or ligne.strip().startswith("<texte>"):
+                    cleared_ligne = re.sub(r'<[^>]+>', '', ligne).strip()
+                    lemmas = []
+                    for mot in cleared_ligne.split():
+                        lemme = nlp(mot)[0].lemma_
+                        lemmas.append(lemme)
+                    if ligne.strip().startswith("<titre>"):
+                        out.write(f"\t\t<titre>{' '.join(lemmas)}</titre>")
+                    else:
+                        out.write(f"\t\t<texte>{' '.join(lemmas)}</texte>")
+                else:
+                    out.write(ligne)
+                
 
 def calculer_frequences(tokens_file = "../../data/tokens.txt"):
     frequences = {}
@@ -153,6 +173,7 @@ def calculer_tf_idf(tokenstf_file="../../data/tokentf.txt", tokensidf_file="../.
 
 
 if __name__ == "__main__":
-    buildLemmasFromSpacy()
+    # buildLemmasFromSpacy()
     # buildRacineFromNLTK()
     # getUniqueLemmeAndRacine()
+    buildLemmatizedXML()
