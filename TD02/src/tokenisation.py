@@ -122,7 +122,7 @@ def calculer_tf_idf(tokenstf_file="../../data/tokentf.txt", tokensidf_file="../.
         for article, token, tf_idf in tfidf_data:
             out.write(f"{article}\t{token}\t{tf_idf:.8f}\n")
 
-def construire_anti_dictionnaire(tokentfidf_file = "../../data/tokentfidf.txt", seuil=0.0015):
+def buildAntidictionnaire(tokentfidf_file = "../../data/tokentfidf.txt", seuil=0.0015):
     anti_dictionnaire = []
     with open(tokentfidf_file, 'r', encoding='utf-8') as file:
         next(file)
@@ -132,6 +132,20 @@ def construire_anti_dictionnaire(tokentfidf_file = "../../data/tokentfidf.txt", 
                 if token not in anti_dictionnaire:
                     anti_dictionnaire.append(token)
     return anti_dictionnaire
+
+def buildAntidictionnaireFile(tokentfidf_file = "../../data/tokentfidf.txt", seuil=0.0015):
+    anti_dictionnaire = buildAntidictionnaire(tokentfidf_file, seuil)
+    removed_token = []
+    with open(tokentfidf_file, 'r', encoding='utf-8') as file:
+        next(file)
+        for line in file:
+            _, token, _ = line.strip().split('\t')
+            if token in anti_dictionnaire and token not in  removed_token:
+                removed_token.append(token)
+    with open("../../data/antidictionnaire.txt", 'w', encoding='utf-8') as out:
+        out.write("token\n")
+        for token in removed_token:
+             out.write(f"{token}\n")
 
 def findSeuil(tokentfidf_file = "../../data/tokentfidf.txt"):
     idf_values = []
@@ -146,7 +160,7 @@ def findSeuil(tokentfidf_file = "../../data/tokentfidf.txt"):
     plt.show()
 
 def buildSubstitution(tokentfidf_file = "../../data/tokentfidf.txt", seuil=0.0015):
-    anti_dictionnaire = construire_anti_dictionnaire(tokentfidf_file, seuil)
+    anti_dictionnaire = buildAntidictionnaire(tokentfidf_file, seuil)
     substitution = {}
     alltokens = []
     with open(tokentfidf_file, 'r', encoding='utf-8') as file:
@@ -159,7 +173,7 @@ def buildSubstitution(tokentfidf_file = "../../data/tokentfidf.txt", seuil=0.001
             substitution[token] = ""
         else:
             substitution[token] = token
-    with open("substitution.txt", 'w', encoding='utf-8') as out:
+    with open("../../data/substitution.txt", 'w', encoding='utf-8') as out:
         out.write("token\tsubstitution\n")
         for token in substitution:
              out.write(f"{token}\t{substitution[token]}\n")
@@ -199,22 +213,10 @@ def buildFilteredXML(input_xml="../../data/corpus.xml", output_xml="../../data/c
                 else:
                     out.write(f"{ligne}\n")
 
-def buildAntidictionnaire(tokentfidf_file = "../../data/tokentfidf.txt", seuil=0.0015):
-    anti_dictionnaire = construire_anti_dictionnaire(tokentfidf_file, seuil)
-    removed_token = []
-    with open(tokentfidf_file, 'r', encoding='utf-8') as file:
-        next(file)
-        for line in file:
-            _, token, _ = line.strip().split('\t')
-            if token in anti_dictionnaire and token not in  removed_token:
-                removed_token.append(token)
-    with open("../../data/antidictionnaire.txt", 'w', encoding='utf-8') as out:
-        out.write("token\n")
-        for token in removed_token:
-             out.write(f"{token}\n")
+
 
 if __name__ == "__main__":
     # calculer_tf_idf()
-    buildAntidictionnaire()
-    # buildFilteredXML()
+    # buildAntidictionnaire()
     # buildSubstitution()
+    buildFilteredXML()
