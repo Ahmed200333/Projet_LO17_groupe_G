@@ -198,6 +198,39 @@ def calculer_tf_idf(tokenstf_file="../data/tokentf.txt", tokensidf_file="../data
         for article, token, tf_idf in tfidf_data:
             out.write(f"{article}\t{token}\t{tf_idf:.8f}\n")
 
+def buildFichiersInverses(xmlfile="../data/corpus_lematized.xml", output_dir="../data"):
+    with open(xmlfile, "r", encoding="UTF-8") as file:
+        content = file.read()
+
+    documents = re.findall(r'<document>(.*?)</document>', content, re.DOTALL)
+
+    balises = ["titre", "texte", "rubrique", "date", "auteur"]
+    inverses = {b: {} for b in balises}
+
+    for doc in documents:
+        article_match = re.search(r'<article>(.*?)</article>', doc)
+        num_article = article_match.group(1).strip() if article_match else "unknown"
+
+        for balise in balises:
+            match = re.search(rf'<{balise}>(.*?)</{balise}>', doc, re.DOTALL)
+            if match:
+                tokens = re.findall(r"\w+'|[\w]+", match.group(1), re.UNICODE)
+                for token in tokens:
+                    token = token.strip().lower()
+                    if token:
+                        if token not in inverses[balise]:
+                            inverses[balise][token] = {}
+                        inverses[balise][token][num_article] = inverses[balise][token].get(num_article, 0) + 1
+
+    # Écriture des fichiers inverses
+    for balise, inverse in inverses.items():
+        filepath = f"{output_dir}/inverse_{balise}.txt"
+        with open(filepath, "w", encoding="UTF-8") as out:
+            out.write("terme\tarticle:fréquence\n")
+            for terme, articles in sorted(inverse.items()):
+                postings = " ".join(f"{art}:{freq}" for art, freq in sorted(articles.items()))
+                out.write(f"{terme}\t{postings}\n")
+
 
 if __name__ == "__main__":
     # buildLemmasFromSpacy()
@@ -207,4 +240,4 @@ if __name__ == "__main__":
     # segmente()
     # calculer_frequences()
     # calculer_idf()
-    calculer_tf_idf()
+    buildFichiersInverses()
