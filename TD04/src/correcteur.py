@@ -1,22 +1,31 @@
 import re
 import spacy #type: ignore
 
-def charger_lexique(lemmas_file="../data/lexique_test.txt"):
-    mot_to_lemme = {}
-    lemmes_connus = set()
+def build_lexique(corpus="../../TD03/data/corpus_lematized.xml"):
+    lexique = set()
+    with open(corpus, 'r', encoding="UTF-8") as file:
+        content = file.read()
+        for ligne in content.splitlines():
+            ligne = ligne.strip()
+            if ligne.startswith("<titre>") or ligne.startswith("<texte>"):
+                texte = re.sub(r"<[^>]+>", "", ligne).strip()
+                for lemme in texte.split():
+                    lexique.add(lemme)
+    with open("../data/lexique.txt","w", encoding="UTF-8") as out:
+        for lemme in sorted(lexique):
+            out.write(lemme + "\n")
 
-    with open(lemmas_file, "r", encoding="utf-8") as f:
+def charger_lexique(lexique_file="../data/lexique.txt"):
+    lexique = set()
+    with open(lexique_file, "r", encoding="utf-8") as f:
         for ligne in f:
-            parts = ligne.strip().split("\t")
-            if len(parts) == 2:
-                mot, lemme = parts
-                mot_to_lemme[mot] = lemme
-                lemmes_connus.add(lemme)
-
-    return mot_to_lemme, lemmes_connus
+            mot = ligne.strip()
+            if mot:
+                lexique.add(mot)
+    return lexique
 
 def tokeniser(requete):
-    return [t.strip().lower() for t in re.findall(r"\w+'|[\w]+", requete, re.UNICODE) if t.strip()]
+    return [t.strip().lower() for t in re.findall(r"\d{1,2}/\d{1,2}/\d{4}|\w+'|[\w]+", requete, re.UNICODE) if t.strip()]
 
 def lemmatiser(tokens, nlp):
     resultats = []
@@ -60,7 +69,7 @@ def distance_levenshtein(m1, m2):
 
 def main(requete):
     nlp = spacy.load("fr_core_news_sm")
-    mot_to_lemme, lemmes_connus = charger_lexique()
+    lexique = charger_lexique()
 
     tokens = tokeniser(requete)
     termes = lemmatiser(tokens, nlp)
@@ -69,23 +78,24 @@ def main(requete):
         if est_specifique(token):
             print(f"  {token} -> {token} (entité spécifique)")
             continue
-        if token in mot_to_lemme:
-            print(f"  {token} -> {mot_to_lemme[token]}")
+        if lemme in lexique:
+            print(f"  {token} -> {lemme}")
             continue
         candidats = []
-        for mot_lexique in mot_to_lemme:
-            prox = recherche_prefixe(token, mot_lexique, 3, 4)
+        for mot_lexique in lexique:
+            prox = recherche_prefixe(lemme, mot_lexique, 3, 4)
             if prox > 60:
                 candidats.append(mot_lexique)
         if len(candidats) == 1:
-            print(f"  {token} -> {mot_to_lemme[candidats[0]]} (corrigé: {candidats[0]})")
+            print(f"  {token} -> {candidats[0]} (corrigé)")
         elif len(candidats) > 1:
-            meilleur = min(candidats, key=lambda c: distance_levenshtein(token, c))
-            print(f"  {token} -> {mot_to_lemme[meilleur]} (corrigé: {meilleur})")
+            meilleur = min(candidats, key=lambda c: distance_levenshtein(lemme, c))
+            print(f"  {token} -> {meilleur} (corrigé)")
         else:
             print(f"  {token} -> ??? (aucun candidat trouvé)")
 
 
 if __name__ == "__main__":
+    # build_lexique()
     requete = input("Entrez votre requête : ")
     main(requete)

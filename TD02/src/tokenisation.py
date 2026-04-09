@@ -22,10 +22,10 @@ def segmente(xmlfile="../../data/corpus.xml", outputfile="../../data/tokens.txt"
             
             titre = titre_match.group(1) if titre_match else ""
             texte = texte_match.group(1) if texte_match else ""
-
+            
             contenu_complet = titre + ' ' + texte
             
-            tokens = re.findall(r"\w+'|[\w]+", contenu_complet, re.UNICODE)
+            tokens = re.findall(r"\d{1,2}/\d{1,2}/\d{4}|\w+'|[\w]+", contenu_complet, re.UNICODE)
             
             for token in tokens:
                 token = token.strip().lower()
@@ -189,7 +189,7 @@ def substitue(text, dictionnaire="../../data/substitution.txt"):
                 token = line.strip()
                 sub = ""
             substitution[token] = sub
-    tokens = re.findall(r"\w+'|[\w]+", text, re.UNICODE)
+    tokens = re.findall(r"\d{1,2}/\d{1,2}/\d{4}|\w+'|[\w]+", text, re.UNICODE)
     result = []
     for token in tokens:
         mapped = substitution.get(token, token)
@@ -218,8 +218,8 @@ def buildFilteredXML(input_xml="../../data/corpus.xml", output_xml="../../data/c
 if __name__ == "__main__":
     #segmente()
     calculer_frequences()
-    #calculer_idf()
-    #calculer_tf_idf()
-    #buildAntidictionnaireFile()
-    #buildSubstitution()
-    #buildFilteredXML()
+    calculer_idf()
+    calculer_tf_idf()
+    buildAntidictionnaireFile()
+    buildSubstitution()
+    buildFilteredXML()

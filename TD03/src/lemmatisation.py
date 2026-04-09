@@ -23,7 +23,7 @@ def buildLemmasFromSpacy():
                     lemme = nlp(mot)[0].lemma_
                     mot_lemme[mot] = lemme
 
-    with open("../../data/lemmas.txt", 'w', encoding='utf-8') as out:
+    with open("../data/lemmas.txt", 'w', encoding='utf-8') as out:
         for mot, lemme in sorted(mot_lemme.items()):
             out.write(f"{mot}\t{lemme}\n")
 
@@ -40,19 +40,19 @@ def buildRacineFromNLTK():
                     racine = stemmer.stem(mot)
                     mot_racine[mot] = racine
 
-    with open("../../data/racines.txt", 'w', encoding='utf-8') as out:
+    with open("../data/racines.txt", 'w', encoding='utf-8') as out:
         for mot, racine in sorted(mot_racine.items()):
             out.write(f"{mot}\t{racine}\n")
 
 def getUniqueLemmeAndRacine():
-    lemmas = open("../../data/lemmas.txt", "r", encoding='utf-8')
+    lemmas = open("../data/lemmas.txt", "r", encoding='utf-8')
     unique_lemme = []
     content_lemmas = lemmas.read()
     for ligne in content_lemmas.splitlines():
         _, lemme = ligne.split("\t")
         if lemme not in unique_lemme:
             unique_lemme.append(lemme)
-    racines = open("../../data/racines.txt", "r", encoding='utf-8')
+    racines = open("../data/racines.txt", "r", encoding='utf-8')
     unique_racine = []
     content_racines = racines.read()
     for ligne in content_racines.splitlines():
@@ -65,7 +65,7 @@ def buildLemmatizedXML():
     nlp = spacy.load("fr_core_news_sm")
     with open("../../data/corpus_filtered.xml", 'r', encoding='utf-8') as file:
         content = file.read()
-        with open("../../data/corpus_lematized.xml", "w", encoding='UTF-8') as out:
+        with open("../data/corpus_lematized.xml", "w", encoding='UTF-8') as out:
             for ligne in content.splitlines():
                 if ligne.strip().startswith("<titre>") or ligne.strip().startswith("<texte>"):
                     cleared_ligne = re.sub(r'<[^>]+>', '', ligne).strip()
@@ -101,7 +101,7 @@ def segmente(xmlfile="../data/corpus_lematized.xml", outputfile="../data/tokens.
 
             contenu_complet = titre + ' ' + texte
             
-            tokens = re.findall(r"\w+'|[\w]+", contenu_complet, re.UNICODE)
+            tokens = re.findall(r"\d{1,2}/\d{1,2}/\d{4}|\w+'|[\w]+", contenu_complet, re.UNICODE)
             
             for token in tokens:
                 token = token.strip().lower()
@@ -204,40 +204,64 @@ def buildFichiersInverses(xmlfile="../data/corpus_lematized.xml", output_dir="..
 
     documents = re.findall(r'<document>(.*?)</document>', content, re.DOTALL)
 
-    balises = ["titre", "texte", "rubrique", "date", "auteur"]
-    inverses = {b: {} for b in balises}
+    termes = ["titre", "texte"]
+    valeurs = ["rubrique", "date", "auteur", "bulletin"]
+    inverses_termes = {b: {} for b in termes}
+    inverses_valeurs = {b: {} for b in valeurs}
+    inverses_images = []
 
     for doc in documents:
         article_match = re.search(r'<article>(.*?)</article>', doc)
         num_article = article_match.group(1).strip() if article_match else "unknown"
 
-        for balise in balises:
+        for balise in termes:
             match = re.search(rf'<{balise}>(.*?)</{balise}>', doc, re.DOTALL)
             if match:
-                tokens = re.findall(r"\w+'|[\w]+", match.group(1), re.UNICODE)
+                tokens = re.findall(r"\d{1,2}/\d{1,2}/\d{4}|\w+'|[\w]+", match.group(1), re.UNICODE)
                 for token in tokens:
                     token = token.strip().lower()
                     if token:
-                        if token not in inverses[balise]:
-                            inverses[balise][token] = {}
-                        inverses[balise][token][num_article] = inverses[balise][token].get(num_article, 0) + 1
+                        if token not in inverses_termes[balise]:
+                            inverses_termes[balise][token] = {}
+                        inverses_termes[balise][token][num_article] = inverses_termes[balise][token].get(num_article, 0) + 1
 
-    # Écriture des fichiers inverses
-    for balise, inverse in inverses.items():
-        filepath = f"{output_dir}/inverse_{balise}.txt"
-        with open(filepath, "w", encoding="UTF-8") as out:
+        for balise in valeurs:
+            match = re.search(rf'<{balise}>(.*?)</{balise}>', doc, re.DOTALL)
+            if match:
+                valeur = match.group(1).strip().lower()
+                if valeur:
+                    if valeur not in inverses_valeurs[balise]:
+                        inverses_valeurs[balise][valeur] = []
+                    inverses_valeurs[balise][valeur].append(num_article)
+
+        match = re.search(r"<image>", doc, re.DOTALL)
+
+        if match:
+            inverses_images.append(num_article)
+
+    for balise, inverse in inverses_termes.items():
+        with open(f"{output_dir}/inverse_{balise}.txt", "w", encoding="UTF-8") as out:
             out.write("terme\tarticle:fréquence\n")
             for terme, articles in sorted(inverse.items()):
                 postings = " ".join(f"{art}:{freq}" for art, freq in sorted(articles.items()))
                 out.write(f"{terme}\t{postings}\n")
 
+    for balise, inverse in inverses_valeurs.items():
+        with open(f"{output_dir}/inverse_{balise}.txt", "w", encoding="UTF-8") as out:
+            out.write("valeur\tarticles\n")
+            for valeur, articles in sorted(inverse.items()):
+                out.write(f"{valeur}\t{' '.join(articles)}\n")
+
+    with open(f"{output_dir}/inverse_images.txt", "w", encoding="UTF-8") as out:
+        out.write("images\tarticles\n")
+        out.write(f"images\t{' '.join(inverses_images)}\n")
 
 if __name__ == "__main__":
-    # buildLemmasFromSpacy()
-    # buildRacineFromNLTK()
-    # getUniqueLemmeAndRacine()
-    # buildLemmatizedXML()
-    # segmente()
-    # calculer_frequences()
-    # calculer_idf()
+    #buildLemmasFromSpacy()
+    #buildRacineFromNLTK()
+    #getUniqueLemmeAndRacine()
+    #buildLemmatizedXML()
+    #segmente()
+    #calculer_frequences()
+    #calculer_idf()
     buildFichiersInverses()
