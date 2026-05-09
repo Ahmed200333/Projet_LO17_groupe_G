@@ -67,32 +67,35 @@ def distance_levenshtein(m1, m2):
                 dist[i][j] = min(dist[i-1][j] + 1, dist[i][j-1] + 1, dist[i-1][j-1] + 1)
     return dist[n][m]
 
-def main(requete):
-    nlp = spacy.load("fr_core_news_sm")
-    lexique = charger_lexique()
+def main(requete, lexique_path="../data/lexique.txt"):
+      nlp = spacy.load("fr_core_news_sm")
+      lexique = charger_lexique(lexique_path)
 
-    tokens = tokeniser(requete)
-    termes = lemmatiser(tokens, nlp)
+      tokens = tokeniser(requete)
+      termes = lemmatiser(tokens, nlp)
 
-    for token, lemme in termes:
-        if est_specifique(token):
-            print(f"  {token} -> {token} (entité spécifique)")
-            continue
-        if lemme in lexique:
-            print(f"  {token} -> {lemme}")
-            continue
-        candidats = []
-        for mot_lexique in lexique:
-            prox = recherche_prefixe(lemme, mot_lexique, 3, 4)
-            if prox > 60:
-                candidats.append(mot_lexique)
-        if len(candidats) == 1:
-            print(f"  {token} -> {candidats[0]} (corrigé)")
-        elif len(candidats) > 1:
-            meilleur = min(candidats, key=lambda c: distance_levenshtein(lemme, c))
-            print(f"  {token} -> {meilleur} (corrigé)")
-        else:
-            print(f"  {token} -> ??? (aucun candidat trouvé)")
+      resultats = []
+      for token, lemme in termes:
+          if est_specifique(token):
+              resultats.append(token)
+              continue
+          if lemme in lexique:
+              resultats.append(lemme)
+              continue
+          candidats = []
+          for mot_lexique in lexique:
+              prox = recherche_prefixe(lemme, mot_lexique, 3, 4)
+              if prox > 60:
+                  candidats.append(mot_lexique)
+          if len(candidats) == 1:
+              resultats.append(candidats[0])
+          elif len(candidats) > 1:
+              meilleur = min(candidats, key=lambda c: distance_levenshtein(lemme, c))
+              resultats.append(meilleur)
+          else:
+              resultats.append(lemme) 
+
+      return " ".join(resultats)
 
 
 if __name__ == "__main__":
