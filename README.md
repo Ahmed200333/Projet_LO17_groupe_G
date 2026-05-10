@@ -1,6 +1,10 @@
 # LO17 - Indexation et Recherche d'Information
 
-Projet de moteur de recherche sur un corpus d'articles scientifiques issus des Bulletins Electroniques.
+Projet de moteur de recherche sur un corpus d'articles scientifiques issus de l'ADIT.
+
+## Remarque préalable
+
+Les fichiers data ne doivent pas être déplacés.
 
 ## Installation
 
