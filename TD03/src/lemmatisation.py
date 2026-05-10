@@ -4,10 +4,12 @@ from nltk.stem import SnowballStemmer #type: ignore
 from collections import defaultdict
 import math
 
+# Applique spaCy sur un texte et retourne les paires (token, lemme)
 def applySpacy(text, nlp):
     doc = nlp(text)
     return [(token.text, token.lemma_) for token in doc]
 
+# Construit le fichier lemmas.txt à partir du corpus filtré via spaCy
 def buildLemmasFromSpacy():
     nlp = spacy.load("fr_core_news_sm")
     mot_lemme = {}
@@ -15,6 +17,7 @@ def buildLemmasFromSpacy():
     with open("../../data/corpus_filtered.xml", 'r', encoding='utf-8') as file:
         content = file.read()
 
+    # Pour chaque mot des titres/textes, on calcule son lemme une seule fois
     for ligne in content.splitlines():
         if ligne.strip().startswith("<titre>") or ligne.strip().startswith("<texte>"):
             cleared_ligne = re.sub(r'<[^>]+>', '', ligne).strip()
@@ -27,6 +30,7 @@ def buildLemmasFromSpacy():
         for mot, lemme in sorted(mot_lemme.items()):
             out.write(f"{mot}\t{lemme}\n")
 
+# Construit le fichier racines.txt via le stemmer Snowball de NLTK
 def buildRacineFromNLTK():
     stemmer = SnowballStemmer("french")
     mot_racine = {}
@@ -44,6 +48,7 @@ def buildRacineFromNLTK():
         for mot, racine in sorted(mot_racine.items()):
             out.write(f"{mot}\t{racine}\n")
 
+# Compare le nombre de lemmes uniques vs racines uniques
 def getUniqueLemmeAndRacine():
     lemmas = open("../data/lemmas.txt", "r", encoding='utf-8')
     unique_lemme = []
@@ -61,6 +66,7 @@ def getUniqueLemmeAndRacine():
             unique_racine.append(racine)
     print(len(unique_lemme),len(unique_racine))
 
+# Génère le corpus XML lemmatisé (titres et textes lemmatisés via spaCy)
 def buildLemmatizedXML():
     nlp = spacy.load("fr_core_news_sm")
     with open("../../data/corpus_filtered.xml", 'r', encoding='utf-8') as file:
@@ -80,6 +86,7 @@ def buildLemmatizedXML():
                 else:
                     out.write(f"{ligne}\n")
 
+# Segmente le corpus lemmatisé en tokens par article
 def segmente(xmlfile="../data/corpus_lematized.xml", outputfile="../data/tokens.txt"):
     with open(xmlfile, 'r', encoding='utf-8') as file:
         content = file.read()
@@ -108,6 +115,7 @@ def segmente(xmlfile="../data/corpus_lematized.xml", outputfile="../data/tokens.
                 if token:
                     out.write(f"{num_article}\t{token}\n")
 
+# Calcule la fréquence TF de chaque token lemmatisé par article
 def calculer_frequences(tokens_file = "../data/tokens.txt"):
     frequences = {}
     
@@ -134,6 +142,7 @@ def calculer_frequences(tokens_file = "../data/tokens.txt"):
                 frequence = count / total_tokens
                 out.write(f"{article}\t{token}\t{frequence}\n")
 
+# Calcule le score IDF des tokens lemmatisés
 def calculer_idf(tokens_file="../data/tokens.txt"):
     articles = defaultdict(set)
     with open(tokens_file, 'r', encoding='utf-8') as file:
@@ -155,6 +164,7 @@ def calculer_idf(tokens_file="../data/tokens.txt"):
             idf = math.log10(N / df)
             out.write(f"{token}\t{idf:.8f}\n")
         
+# Calcule le score TF-IDF moyen par token lemmatisé
 def calculer_tf_idf(tokenstf_file="../data/tokentf.txt", tokensidf_file="../data/tokenidf.txt"):
     from collections import defaultdict
     
@@ -198,12 +208,15 @@ def calculer_tf_idf(tokenstf_file="../data/tokentf.txt", tokensidf_file="../data
         for article, token, tf_idf in tfidf_data:
             out.write(f"{article}\t{token}\t{tf_idf:.8f}\n")
 
+# Construit les fichiers inverses (titre, texte, rubrique, date, auteur, bulletin, images)
 def buildFichiersInverses(xmlfile="../data/corpus_lematized.xml", output_dir="../data"):
     with open(xmlfile, "r", encoding="UTF-8") as file:
         content = file.read()
 
     documents = re.findall(r'<document>(.*?)</document>', content, re.DOTALL)
 
+    # "termes" : index avec fréquence (terme → article:freq)
+    # "valeurs" : index sans fréquence (valeur → liste d'articles)
     termes = ["titre", "texte"]
     valeurs = ["rubrique", "date", "auteur", "bulletin"]
     inverses_termes = {b: {} for b in termes}

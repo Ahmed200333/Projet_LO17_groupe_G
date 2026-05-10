@@ -4,15 +4,17 @@ import seaborn as sns #type:ignore
 import matplotlib.pyplot as plt
 from collections import defaultdict
 
+# Segmente le corpus XML en tokens (un par ligne) avec l'article associé
 def segmente(xmlfile="../../data/corpus.xml", outputfile="../../data/tokens.txt"):
     with open(xmlfile, 'r', encoding='utf-8') as file:
         content = file.read()
     
+    # Extraction de chaque bloc <document>
     documents = re.findall(r'<document>(.*?)</document>', content, re.DOTALL)
 
     with open(outputfile, 'w', encoding='utf-8') as out:
         out.write("article\ttoken\n")
-        
+
         for doc in documents:
             article_match = re.search(r'<article>(.*?)</article>', doc)
             num_article = article_match.group(1).strip() if article_match else "unknown"
@@ -23,8 +25,8 @@ def segmente(xmlfile="../../data/corpus.xml", outputfile="../../data/tokens.txt"
             titre = titre_match.group(1) if titre_match else ""
             texte = texte_match.group(1) if texte_match else ""
             
+            # Concaténation titre + texte puis tokenisation (gère les dates JJ/MM/AAAA)
             contenu_complet = titre + ' ' + texte
-            
             tokens = re.findall(r"\d{1,2}/\d{1,2}/\d{4}|\w+'|[\w]+", contenu_complet, re.UNICODE)
             
             for token in tokens:
@@ -32,6 +34,7 @@ def segmente(xmlfile="../../data/corpus.xml", outputfile="../../data/tokens.txt"
                 if token:
                     out.write(f"{num_article}\t{token}\n")
 
+# Calcule la fréquence TF de chaque token par article
 def calculer_frequences(tokens_file = "../../data/tokens.txt"):
     frequences = {}
     
@@ -49,15 +52,16 @@ def calculer_frequences(tokens_file = "../../data/tokens.txt"):
             else:
                 frequences[article][token] = 1
 
+    # TF = nombre d'occurrences du token / nombre total de tokens dans l'article
     with open("../../data/tokentf.txt", 'w', encoding='utf-8') as out:
         out.write("article\ttoken\tcoef.\n")
         for article in frequences:
             total_tokens = sum(frequences[article].values())
-            
             for token, count in frequences[article].items():
                 frequence = count / total_tokens
                 out.write(f"{article}\t{token}\t{frequence}\n")
 
+# Calcule le score IDF de chaque token (log10(N/df))
 def calculer_idf(tokens_file="../../data/tokens.txt"):
     articles = defaultdict(set)
     with open(tokens_file, 'r', encoding='utf-8') as file:
@@ -66,8 +70,9 @@ def calculer_idf(tokens_file="../../data/tokens.txt"):
             article, token = line.strip().split('\t')
             articles[article].add(token)  # add() ignore les doublons automatiquement
     
-    N = len(articles)
-    
+    N = len(articles)  # nombre total de documents
+
+    # df = nombre de documents contenant chaque token
     d = defaultdict(int)
     for tokens_set in articles.values():
         for token in tokens_set:
@@ -79,6 +84,7 @@ def calculer_idf(tokens_file="../../data/tokens.txt"):
             idf = math.log10(N / df)
             out.write(f"{token}\t{idf:.8f}\n")
         
+# Calcule le score TF-IDF moyen par token et trie par pertinence
 def calculer_tf_idf(tokenstf_file="../../data/tokentf.txt", tokensidf_file="../../data/tokenidf.txt"):
     from collections import defaultdict
     
@@ -89,8 +95,8 @@ def calculer_tf_idf(tokenstf_file="../../data/tokentf.txt", tokensidf_file="../.
             token, idf = line.strip().split('\t')
             idf_values[token] = float(idf)
     
+    # Accumule les TF-IDF par token pour calculer la moyenne
     token_tfidf_sums = defaultdict(lambda: {'sum': 0, 'count': 0})
-    
     with open(tokenstf_file, 'r', encoding='utf-8') as file:
         next(file)
         for line in file:
@@ -115,6 +121,7 @@ def calculer_tf_idf(tokenstf_file="../../data/tokentf.txt", tokensidf_file="../.
                 temp.append(token)
                 tfidf_data.append((article, token, avg_tfidf))
     
+    # Tri par TF-IDF croissant (les mots vides en premier)
     tfidf_data.sort(key=lambda x: x[2])
     
     with open("../../data/tokentfidf.txt", 'w', encoding='utf-8') as out:
@@ -122,6 +129,7 @@ def calculer_tf_idf(tokenstf_file="../../data/tokentf.txt", tokensidf_file="../.
         for article, token, tf_idf in tfidf_data:
             out.write(f"{article}\t{token}\t{tf_idf:.8f}\n")
 
+# Construit la liste des mots vides (TF-IDF < seuil)
 def buildAntidictionnaire(tokentfidf_file = "../../data/tokentfidf.txt", seuil=0.0014):
     anti_dictionnaire = []
     with open(tokentfidf_file, 'r', encoding='utf-8') as file:
@@ -133,6 +141,7 @@ def buildAntidictionnaire(tokentfidf_file = "../../data/tokentfidf.txt", seuil=0
                     anti_dictionnaire.append(token)
     return anti_dictionnaire
 
+# Écrit l'antidictionnaire dans un fichier
 def buildAntidictionnaireFile(tokentfidf_file = "../../data/tokentfidf.txt", seuil=0.0014):
     anti_dictionnaire = buildAntidictionnaire(tokentfidf_file, seuil)
     removed_token = []
@@ -147,6 +156,7 @@ def buildAntidictionnaireFile(tokentfidf_file = "../../data/tokentfidf.txt", seu
         for token in removed_token:
              out.write(f"{token}\n")
 
+# Affiche un histogramme des TF-IDF pour déterminer le seuil de l'antidictionnaire
 def findSeuil(tokentfidf_file = "../../data/tokentfidf.txt"):
     idf_values = []
     with open(tokentfidf_file, 'r', encoding='utf-8') as file:
@@ -159,6 +169,7 @@ def findSeuil(tokentfidf_file = "../../data/tokentfidf.txt"):
     sns.histplot(filtered, bins=50, kde=True)
     plt.show()
 
+# Construit la table de substitution : mots vides → "" , autres → eux-mêmes
 def buildSubstitution(tokentfidf_file = "../../data/tokentfidf.txt", seuil=0.0014):
     anti_dictionnaire = buildAntidictionnaire(tokentfidf_file, seuil)
     substitution = {}
@@ -178,6 +189,7 @@ def buildSubstitution(tokentfidf_file = "../../data/tokentfidf.txt", seuil=0.001
         for token in substitution:
              out.write(f"{token}\t{substitution[token]}\n")
 
+# Applique la table de substitution sur un texte (supprime les mots vides)
 def substitue(text, dictionnaire="../../data/substitution.txt"):
     substitution = {}
     with open(dictionnaire, 'r', encoding='utf-8') as file:
@@ -197,6 +209,7 @@ def substitue(text, dictionnaire="../../data/substitution.txt"):
             result.append(mapped)
     return ' '.join(result)
 
+# Génère le corpus XML filtré en appliquant la substitution sur titres et textes
 def buildFilteredXML(input_xml="../../data/corpus.xml", output_xml="../../data/corpus_filtered.xml", substitution_file="../../data/substitution.txt"):
     with open(input_xml, 'r', encoding='utf-8') as file:
         content = file.read()

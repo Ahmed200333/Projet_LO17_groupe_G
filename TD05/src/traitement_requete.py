@@ -114,6 +114,7 @@ STOPWORDS = {
     "fois","ont", "évoque","voir","mentionnent","pour","listez-moi","quelle"
 }
 
+# Extrait les mots-clés avec leurs opérateurs booléens (AND, OR, NOT)
 def extract_keywords_with_ops(cleaned_req):
       if ("mais pas mois juin" in cleaned_req):
           return []
@@ -138,11 +139,13 @@ def extract_keywords_with_ops(cleaned_req):
 
       return keywords
 
+# Détecte les mois à exclure des résultats
 def get_exclus_mois(req):
     if "mais pas au mois de juin" in req:
         return ["juin"]
     return []
 
+# Détermine le champ de recherche (titre ou contenu)
 def get_champ(req):
     if "titre" in req:
         return "titre"
@@ -150,6 +153,7 @@ def get_champ(req):
         return "contenu"
     return None
 
+# Détermine le type de résultat attendu (articles, rubriques, bulletins)
 def get_obj(req):
     if("je souhaite les rubriques" in req) or ("dans quelles rubriques" in req):
         return "rubriques"
@@ -157,6 +161,7 @@ def get_obj(req):
         return "bulletins"
     return "articles"
 
+# Nettoie la requête : supprime la ponctuation et les stopwords
 def clean_req(req):
     req_lower = req.lower()
     req_lower = re.sub(r"[?!.,;:\(\)«»\"]", "", req_lower)
@@ -165,6 +170,7 @@ def clean_req(req):
     tokens = [t for t in tokens if t not in STOPWORDS]
     return " ".join(tokens)
 
+# Extrait les métadonnées de la requête : rubriques, dates, images, champ, mots-clés
 def extract_metadonnees(req):
     meta = {}
     meta["type_resultat"] = get_obj(req.lower())
@@ -297,6 +303,7 @@ def extract_metadonnees(req):
     meta["kws"] = kws
     return meta, req_lower
 
+# Point d'entrée : structure une requête en langage naturel en métadonnées exploitables
 def main(req):
     meta, req = extract_metadonnees(req)
     return meta

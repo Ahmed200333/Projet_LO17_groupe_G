@@ -7,6 +7,7 @@ from traitement_requete import main as extract_data #type:ignore
 import time as t
 import matplotlib.pyplot as plt
 
+# Chargement du corpus XML original pour l'affichage des résultats
 with open("../../data/corpus.xml", "r", encoding="UTF-8") as f:
     xml_content = f.read()
     xml_content = re.sub(r"&(?!amp;|lt;|gt;|apos;|quot;)", "&amp;", xml_content)
@@ -32,21 +33,25 @@ REQUETES = ["Quels sont les articles parus entre le 3 mars 2013 et le 4 mai 2013
             "Je veux les articles qui parlent des systèmes embarqués et non pas la robotique.",
             "Je cherche les articles sur le Changement climatique publiés après 29/09/2011."]
 
+# Chargement des articles avec images depuis l'index inversé
 with open("../../TD03/data/inverse_images.txt", "r", encoding="UTF-8") as f:
     ligne_images = f.read().splitlines()[1]
     _, articles_img = ligne_images.split("\t")
     ARTICLES_AVEC_IMAGES = set(articles_img.split(" "))
 
+# Convertit une date JJ/MM/AAAA en entier AAAAMMJJ pour comparaison
 def date_to_int(date_str):
     j, m, a = date_str.split("/")
     return int(a) * 10000 + int(m) * 100 + int(j)
 
+# Retourne le nom du mois à partir d'une date JJ/MM/AAAA
 def date_str_to_mois(date_str):
     mois_noms = ["janvier", "février", "mars", "avril", "mai", "juin",
                  "juillet", "août", "septembre", "octobre", "novembre", "décembre"]
     m = int(date_str.split("/")[1])
     return mois_noms[m - 1]
 
+# Construit le ground truth : recherche directe dans le corpus original pour chaque requête
 def extract_raw_req_res():
     res = {}
     req1_ids, req2_ids, req3_ids, req4_ids, req5_ids, req6_ids = [],[],[],[],[],[]
@@ -99,9 +104,13 @@ def extract_raw_req_res():
     print(req9_ids)
     return res
 
+# Moteur de recherche : interroge les index inversés et combine les résultats avec opérateurs booléens
 def run_moteur(req):
+    # Structuration de la requête en métadonnées (kws, rubriques, dates, images)
     extracted_data = extract_data(req)
     scores = {}
+
+    # Recherche par mots-clés dans l'index inversé (titre ou texte)
     resultats_kws = None
     if extracted_data["kws"] != []:
         if extracted_data["champ"] == "titre":
@@ -112,6 +121,7 @@ def run_moteur(req):
                 content = f.read()
         lignes_index = content.splitlines()[1:]
         for kw in extracted_data["kws"]:
+            # Split des termes multi-mots (ex: "etat unir") pour chercher chaque mot séparément
             sous_termes = kw["terme"].split()
             ids_kw = None
             scores_kw = {}
@@ -132,6 +142,7 @@ def run_moteur(req):
                 for article_id, freq in ids.items():
                     scores_kw[article_id] = scores_kw.get(article_id, 0) + freq
             ids_kw = ids_kw or set()
+            # Combinaison avec l'opérateur booléen du mot-clé
             if resultats_kws is None:
                 resultats_kws = ids_kw
             elif kw["op"] == "AND":
@@ -143,6 +154,7 @@ def run_moteur(req):
             for article_id, freq in scores_kw.items():
                 if article_id in resultats_kws:
                     scores[article_id] = scores.get(article_id, 0) + freq
+    # Recherche par rubrique dans l'index inversé
     resultats_rub = None
     if extracted_data["rubriques"] != []:
         with open("../../TD03/data/inverse_rubrique.txt", "r", encoding="UTF-8") as f:
@@ -161,6 +173,7 @@ def run_moteur(req):
                 resultats_rub = resultats_rub | ids
             else:
                 resultats_rub = resultats_rub & ids
+    # Filtrage par dates (intervalle min/max et mois exclus)
     resultats_dates = None
     if (extracted_data["date_min"] != None) or (extracted_data["date_max"] != None) or (extracted_data["mois_exclus"] != []):
         with open("../../TD03/data/inverse_date.txt", "r", encoding="UTF-8") as f:
@@ -188,6 +201,7 @@ def run_moteur(req):
                     inclure = False
             if inclure:
                 resultats_dates.update(articles.split(" "))
+    # Filtrage par présence/absence d'images
     resultats_images = None
     if extracted_data["images"] != None:
         if extracted_data["images"] == True:
@@ -195,6 +209,7 @@ def run_moteur(req):
         else:
             resultats_images = set(CORPUS.keys()) - ARTICLES_AVEC_IMAGES
 
+    # Combinaison finale : intersection (AND) de tous les critères actifs
     resultats_final = None
     for res in [resultats_kws if extracted_data["kws"] != [] else None,
                 resultats_rub if extracted_data["rubriques"] != [] else None,
@@ -203,6 +218,7 @@ def run_moteur(req):
         if res is not None:
             resultats_final = res if resultats_final is None else resultats_final & res
 
+    # Filtrage des scores et ajout des articles sans score (trouvés par date/rubrique/image)
     if resultats_final is not None:
         scores = {k: v for k, v in scores.items() if k in resultats_final}
         for article_id in resultats_final:
@@ -213,6 +229,7 @@ def run_moteur(req):
         resultats_tries = sorted(scores.items(), key=lambda x: x[1], reverse=True)
     return extracted_data, resultats_tries
 
+# Interface Streamlit : saisie de requête, affichage des résultats avec tri et snippets
 def app():
     st.title("LO17 - Moteur de recherche")
 
@@ -262,6 +279,7 @@ def app():
                 st.write(f"**Rubrique :** {info['rubrique']}")
                 st.write(f"**Extrait :** {snippet}")
 
+# Évalue le moteur : compare les résultats avec le ground truth (précision et rappel)
 def evaluate():
     ground_truth = extract_raw_req_res()
     for requete, expected_ids in ground_truth.items():
@@ -277,6 +295,7 @@ def evaluate():
         print(f"Requête: {requete}")
         print(f"  Précision: {precision:.2f}, Rappel: {rappel:.2f}")
 
+# Mesure le temps de réponse moyen de chaque requête sur 100 exécutions
 def answer_time():
     answer_time = {}
     i = 1
@@ -292,6 +311,7 @@ def answer_time():
         i += 1
     return answer_time
 
+# Génère le graphique des temps de réponse moyens
 def get_figure():
     times = answer_time()
     plt.figure(figsize=(12, 5))

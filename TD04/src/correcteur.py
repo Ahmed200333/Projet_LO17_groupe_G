@@ -1,6 +1,7 @@
 import re
 import spacy #type: ignore
 
+# Extrait tous les lemmes uniques du corpus pour construire le lexique de référence
 def build_lexique(corpus="../../TD03/data/corpus_lematized.xml"):
     lexique = set()
     with open(corpus, 'r', encoding="UTF-8") as file:
@@ -15,6 +16,7 @@ def build_lexique(corpus="../../TD03/data/corpus_lematized.xml"):
         for lemme in sorted(lexique):
             out.write(lemme + "\n")
 
+# Charge le lexique depuis un fichier
 def charger_lexique(lexique_file="../data/lexique.txt"):
     lexique = set()
     with open(lexique_file, "r", encoding="utf-8") as f:
@@ -24,9 +26,11 @@ def charger_lexique(lexique_file="../data/lexique.txt"):
                 lexique.add(mot)
     return lexique
 
+# Tokenise une requête en mots (gère les dates JJ/MM/AAAA)
 def tokeniser(requete):
     return [t.strip().lower() for t in re.findall(r"\d{1,2}/\d{1,2}/\d{4}|\w+'|[\w]+", requete, re.UNICODE) if t.strip()]
 
+# Lemmatise chaque token via spaCy
 def lemmatiser(tokens, nlp):
     resultats = []
     for token in tokens:
@@ -34,12 +38,14 @@ def lemmatiser(tokens, nlp):
         resultats.append((token, lemme))
     return resultats
 
+# Vérifie si un terme contient un chiffre (terme spécifique, non corrigé)
 def est_specifique(terme):
     if re.search(r"\d", terme):
         return True
     else:
         return False
 
+# Calcule la similarité par préfixe commun entre deux mots (en %)
 def recherche_prefixe(m1, m2, seuil_min, seuil_max):
     if (len(m1) < seuil_min) or (len(m2) < seuil_min):
         return 0
@@ -52,6 +58,7 @@ def recherche_prefixe(m1, m2, seuil_min, seuil_max):
                 i += 1
             return (i/max(len(m1), len(m2)))*100
             
+# Calcule la distance de Levenshtein entre deux mots
 def distance_levenshtein(m1, m2):
     n, m = len(m1), len(m2)
     dist = [[0] * (m + 1) for _ in range(n + 1)]
@@ -67,6 +74,7 @@ def distance_levenshtein(m1, m2):
                 dist[i][j] = min(dist[i-1][j] + 1, dist[i][j-1] + 1, dist[i-1][j-1] + 1)
     return dist[n][m]
 
+# Corrige une requête : tokenise, lemmatise, puis corrige via préfixe + Levenshtein
 def main(requete, lexique_path="../data/lexique.txt"):
       nlp = spacy.load("fr_core_news_sm")
       lexique = charger_lexique(lexique_path)
@@ -76,17 +84,21 @@ def main(requete, lexique_path="../data/lexique.txt"):
 
       resultats = []
       for token, lemme in termes:
+          # Les termes avec chiffres sont gardés tels quels
           if est_specifique(token):
               resultats.append(token)
               continue
+          # Si le lemme existe dans le lexique, pas besoin de correction
           if lemme in lexique:
               resultats.append(lemme)
               continue
+          # Sinon, recherche de candidats par similarité de préfixe
           candidats = []
           for mot_lexique in lexique:
               prox = recherche_prefixe(lemme, mot_lexique, 3, 4)
               if prox > 60:
                   candidats.append(mot_lexique)
+          # Sélection du meilleur candidat par distance de Levenshtein
           if len(candidats) == 1:
               resultats.append(candidats[0])
           elif len(candidats) > 1:
