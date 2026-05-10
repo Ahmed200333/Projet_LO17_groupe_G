@@ -6,7 +6,35 @@ Projet de moteur de recherche sur un corpus d'articles scientifiques issus de l'
 
 Les fichiers data ne doivent pas être déplacés.
 
+## Prérequis
+
+- Python 3.12+
+- Git
+
 ## Installation
+
+### 1. Cloner le dépôt
+
+```bash
+git clone git@github.com:Ahmed200333/Projet_LO17_groupe_G.git
+cd Projet_LO17_groupe_G
+```
+
+### 2. Créer et activer un environnement virtuel
+
+**Windows :**
+```bash
+python -m venv .venv
+.venv\Scripts\activate
+```
+
+**Linux / macOS :**
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+### 3. Installer les dépendances
 
 ```bash
 pip install -r requirements.txt
@@ -18,6 +46,17 @@ pip install -r requirements.txt
 cd TD06/src
 streamlit run moteur.py
 ```
+
+## Évaluation du moteur
+
+Pour lancer l'évaluation (précision, rappel, temps de réponse) :
+
+```bash
+cd TD06/src
+python moteur.py
+```
+
+(Décommenter `evaluate()` et/ou `get_figure()` dans le `__main__` selon le besoin.)
 
 ## Structure des données
 
