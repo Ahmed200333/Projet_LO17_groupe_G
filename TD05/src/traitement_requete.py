@@ -297,14 +297,11 @@ def extract_metadonnees(req):
     meta["kws"] = kws
     return meta, req_lower
 
+def main(req):
+    meta, req = extract_metadonnees(req)
+    return meta
+
 if __name__ == "__main__":
     for t in REQUETES:
-        #meta, reste = extract_metadonnees(t)
-        #print(f"Requête : {t}")
-        #print(f"  meta  : {meta}")
-        #print(f"  reste : \"{reste}\"")
-        #print()
-        meta, req = extract_metadonnees(t)
-        print(meta)
-        #print(meta)
-        #print(f"{clean_req(req)} --> {extract_keywords_with_ops(clean_req(req))}")
+        meta = main(t)
+        print(meta["champ"])
