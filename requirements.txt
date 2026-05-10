@@ -1,0 +1,6 @@
+spacy
+fr_core_news_sm
+nltk
+streamlit
+matplotlib
+seaborn
